@@ -1,60 +1,46 @@
-const db = require("./database");
+const Database = require("better-sqlite3");
+const path = require("path");
 
-// Récupère un utilisateur ou le crée s'il n'existe pas
-function getUser(userId, guildId) {
-    let user = db.prepare(`
-        SELECT *
-        FROM users
-        WHERE user_id = ? AND guild_id = ?
-    `).get(userId, guildId);
+const dbPath = path.join(__dirname, "database.sqlite");
 
-    if (!user) {
-        db.prepare(`
-            INSERT INTO users (user_id, guild_id, balance, created_at)
-            VALUES (?, ?, 0, ?)
-        `).run(userId, guildId, Date.now());
+const db = new Database(dbPath);
 
-        user = db.prepare(`
-            SELECT *
-            FROM users
-            WHERE user_id = ? AND guild_id = ?
-        `).get(userId, guildId);
-    }
+db.pragma("foreign_keys = ON");
 
-    return user;
-}
+db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        balance INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        daily_claim_at INTEGER NOT NULL DEFAULT 0,
+        streak INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, guild_id)
+    );
 
-// Récupère uniquement le solde
-function getBalance(userId, guildId) {
-    const user = getUser(userId, guildId);
-    return user.balance;
-}
+    CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        reason TEXT,
+        created_at INTEGER NOT NULL
+    );
 
-// Ajoute des pièces
-function addBalance(userId, guildId, amount) {
-    getUser(userId, guildId);
+    CREATE TABLE IF NOT EXISTS bug_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        game TEXT NOT NULL,
+        description TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        validated_by TEXT,
+        created_at INTEGER NOT NULL,
+        resolved_at INTEGER
+    );
+`);
 
-    db.prepare(`
-        UPDATE users
-        SET balance = balance + ?
-        WHERE user_id = ? AND guild_id = ?
-    `).run(amount, userId, guildId);
-}
+console.log("✅ Base de données SQLite chargée");
 
-// Retire des pièces
-function removeBalance(userId, guildId, amount) {
-    getUser(userId, guildId);
-
-    db.prepare(`
-        UPDATE users
-        SET balance = balance - ?
-        WHERE user_id = ? AND guild_id = ?
-    `).run(amount, userId, guildId);
-}
-
-module.exports = {
-    getUser,
-    getBalance,
-    addBalance,
-    removeBalance
-};
+module.exports = db;
