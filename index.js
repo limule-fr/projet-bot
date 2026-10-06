@@ -7,6 +7,8 @@ const {
     Events
 } = require("discord.js");
 
+const db = require("./database/database");
+
 // ─────────────────────────────
 // Serveur HTTP
 // ─────────────────────────────
@@ -19,6 +21,7 @@ http.createServer((req, res) => {
 }).listen(PORT, () => {
     console.log(`🌐 Serveur HTTP lancé sur le port ${PORT}`);
 });
+
 
 // ─────────────────────────────
 // Bot Discord
