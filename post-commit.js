@@ -5,8 +5,7 @@ const { execSync } = require("child_process");
 
 // 1. On récupère les deux webhooks dans un tableau
 const webhooks = [
-    process.env.WEBHOOK_URL_1,
-    process.env.WEBHOOK_URL_2
+    process.env.WEBHOOK_URL
 ].filter(Boolean); // .filter(Boolean) permet d'ignorer une variable si elle est vide
 
 try {

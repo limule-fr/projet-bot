@@ -178,23 +178,34 @@ async function handleBugButton(interaction) {
         });
     }
 
-    let status;
-    let message;
-    let reward = 0;
+   let status;
+let message;
+let reward = 0;
 
-    if (action === "bug_validate") {
-        status = "validated";
-        reward = BUG_REWARD;
-        message = `✅ Bug validé. <@${bug.user_id}> reçoit **+${BUG_REWARD} pièces**.`;
-    } else if (action === "bug_reject") {
-        status = "rejected";
-        message = "❌ Bug refusé.";
-    } else if (action === "bug_duplicate") {
-        status = "duplicate";
-        message = "♻️ Bug marqué comme déjà signalé.";
-    } else {
-        return;
-    }
+// L'auteur du bug ne peut pas le valider lui-même
+if (
+    action === "bug_validate" &&
+    interaction.user.id === bug.user_id
+) {
+    return interaction.reply({
+        content: "❌ Tu ne peux pas valider ton propre bug.",
+        ephemeral: true
+    });
+}
+
+if (action === "bug_validate") {
+    status = "validated";
+    reward = BUG_REWARD;
+    message = `✅ Bug validé. <@${bug.user_id}> reçoit **+${BUG_REWARD} pièces**.`;
+} else if (action === "bug_reject") {
+    status = "rejected";
+    message = "❌ Bug refusé.";
+} else if (action === "bug_duplicate") {
+    status = "duplicate";
+    message = "♻️ Bug marqué comme déjà signalé.";
+} else {
+    return;
+}
 
 
     transaction();
