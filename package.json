@@ -1,0 +1,25 @@
+{
+  "name": "projet-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/limule-fr/projet-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/limule-fr/projet-bot/issues"
+  },
+  "homepage": "https://github.com/limule-fr/projet-bot#readme",
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "dotenv": "^18.0.6"
+  }
+}
