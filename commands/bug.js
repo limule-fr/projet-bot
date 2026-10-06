@@ -196,31 +196,6 @@ async function handleBugButton(interaction) {
         return;
     }
 
-    const transaction = db.transaction(() => {
-        db.prepare(`
-            UPDATE bug_reports
-            SET status = ?,
-                validated_by = ?,
-                resolved_at = ?
-            WHERE id = ?
-              AND status = 'pending'
-        `).run(
-            status,
-            interaction.user.id,
-            Date.now(),
-            bugId
-        );
-
-        if (reward > 0) {
-            addBalance(
-                bug.user_id,
-                bug.guild_id,
-                reward,
-                "bug_validated",
-                `Bug #${bugId} validé`
-            );
-        }
-    });
 
     transaction();
 
