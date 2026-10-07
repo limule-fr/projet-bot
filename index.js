@@ -21,6 +21,13 @@ const {
     handleBugButton
 } = require("./commands/bug");
 
+const {
+    handleShop,
+    handleBuy,
+    handleShopAdd,
+    handleShopRemove
+} = require("./commands/shop");
+
 // =====================================================
 // SERVEUR HTTP
 // =====================================================
@@ -85,6 +92,41 @@ client.on(Events.MessageCreate, async message => {
         if (content === "!daily") {
             return handleDaily(message);
         }
+
+        if (content === "!shop") {
+    return handleShop(message);
+}
+
+if (content.startsWith("!buy ")) {
+    const args = content
+        .slice(5)
+        .trim()
+        .split(/\s+/);
+
+    return handleBuy(message, args);
+}
+
+//=================================
+//       !SHOPadd/remouve
+//=================================
+
+if (content.startsWith("!shopadd ")) {
+    const args = content
+        .slice(9)
+        .trim()
+        .split(/\s+/);
+
+    return handleShopAdd(message, args);
+}
+
+if (content.startsWith("!shopremove ")) {
+    const args = content
+        .slice(12)
+        .trim()
+        .split(/\s+/);
+
+    return handleShopRemove(message, args);
+}
 
         // ==========================
         // !bug

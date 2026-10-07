@@ -39,6 +39,34 @@ db.exec(`
         created_at INTEGER NOT NULL,
         resolved_at INTEGER
     );
+    
+     CREATE TABLE IF NOT EXISTS shop_items (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     guild_id TEXT NOT NULL,
+     role_id TEXT NOT NULL,
+     name TEXT NOT NULL,
+     price INTEGER NOT NULL,
+     created_at INTEGER NOT NULL
+    );
+
+     CREATE TABLE IF NOT EXISTS purchases (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     user_id TEXT NOT NULL,
+     guild_id TEXT NOT NULL,
+     item_id INTEGER NOT NULL,
+     price INTEGER NOT NULL,
+     created_at INTEGER NOT NULL
+    );
+
+     CREATE TABLE IF NOT EXISTS tickets (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     guild_id TEXT NOT NULL,
+     channel_id TEXT,
+     user_id TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'open',
+     created_at INTEGER NOT NULL,
+     closed_at INTEGER
+    );
 `);
 
 console.log("✅ Base de données SQLite chargée");
