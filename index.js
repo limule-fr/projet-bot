@@ -11,6 +11,10 @@ const {
 require("./database/database");
 
 const {
+    handlePay
+} = require("./commands/pay");
+
+const {
     handleMessageReward,
     handleBalance,
     handleDaily
@@ -95,6 +99,14 @@ client.on(Events.MessageCreate, async message => {
 
         if (content === "!shop") {
     return handleShop(message);
+}
+if (content.startsWith("!pay ")) {
+    const args = content
+        .slice(5)
+        .trim()
+        .split(/\s+/);
+
+    return handlePay(message, args);
 }
 
 if (content.startsWith("!give ")) {
