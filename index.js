@@ -97,6 +97,43 @@ client.on(Events.MessageCreate, async message => {
     return handleShop(message);
 }
 
+if (content.startsWith("!give ")) {
+    if (message.author.id !== process.env.OWNER_ID) {
+        return;
+    }
+
+    const amount = Number(
+        content.slice(6).trim()
+    );
+
+    if (!Number.isInteger(amount) || amount <= 0) {
+        return message.reply(
+            "❌ Utilisation : `!give <montant>`"
+        );
+    }
+
+    const { addBalance, getBalance } = require("./database/users");
+
+    addBalance(
+        message.author.id,
+        message.guild.id,
+        amount,
+        "dev_give",
+        "Ajout manuel par le propriétaire"
+    );
+
+    const balance = getBalance(
+        message.author.id,
+        message.guild.id
+    );
+
+    return message.reply(
+        `🛠️ **Mode développement**\n` +
+        `💰 **+${amount} pièces**\n` +
+        `💳 Nouveau solde : **${balance} pièces**`
+    );
+}
+
 if (content.startsWith("!buy ")) {
     const args = content
         .slice(5)
