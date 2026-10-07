@@ -8,7 +8,7 @@ const {
     Events
 } = require("discord.js");
 
-require("./database/database");
+const { initializeDatabase } = require("./database/database");
 
 const {
     handlePay
@@ -90,15 +90,15 @@ client.on(Events.MessageCreate, async message => {
         }
 
         if (content === "!balance") {
-            return handleBalance(message);
+            return await handleBalance(message);
         }
 
         if (content === "!daily") {
-            return handleDaily(message);
+            return await handleDaily(message);
         }
 
-        if (content === "!shop") {
-    return handleShop(message);
+       if (content === "!shop") {
+    return await handleShop(message);
 }
 if (content.startsWith("!pay ")) {
     const args = content
@@ -106,8 +106,9 @@ if (content.startsWith("!pay ")) {
         .trim()
         .split(/\s+/);
 
-    return handlePay(message, args);
+    return await handlePay(message, args);
 }
+
 
 if (content.startsWith("!give ")) {
     if (message.author.id !== process.env.OWNER_ID) {
@@ -126,24 +127,24 @@ if (content.startsWith("!give ")) {
 
     const { addBalance, getBalance } = require("./database/users");
 
-    addBalance(
-        message.author.id,
-        message.guild.id,
-        amount,
-        "dev_give",
-        "Ajout manuel par le propriétaire"
-    );
+   await addBalance(
+    message.author.id,
+    message.guild.id,
+    amount,
+    "dev_give",
+    "Ajout manuel par le propriétaire"
+);
 
-    const balance = getBalance(
-        message.author.id,
-        message.guild.id
-    );
+ const balance = await getBalance(
+    message.author.id,
+    message.guild.id
+);
 
-    return message.reply(
-        `🛠️ **Mode développement**\n` +
-        `💰 **+${amount} pièces**\n` +
-        `💳 Nouveau solde : **${balance} pièces**`
-    );
+ return message.reply(
+    `🛠️ **Mode développement**\n` +
+    `💰 **+${amount} pièces**\n` +
+    `💳 Nouveau solde : **${balance} pièces**`
+);
 }
 
 if (content.startsWith("!buy ")) {
@@ -152,7 +153,7 @@ if (content.startsWith("!buy ")) {
         .trim()
         .split(/\s+/);
 
-    return handleBuy(message, args);
+    return await handleBuy(message, args);
 }
 
 //=================================
@@ -165,7 +166,7 @@ if (content.startsWith("!shopadd ")) {
         .trim()
         .split(/\s+/);
 
-    return handleShopAdd(message, args);
+    return await handleShopAdd(message, args);
 }
 
 if (content.startsWith("!shopremove ")) {
@@ -174,7 +175,7 @@ if (content.startsWith("!shopremove ")) {
         .trim()
         .split(/\s+/);
 
-    return handleShopRemove(message, args);
+    return await handleShopRemove(message, args);
 }
 
         // ==========================
@@ -182,14 +183,12 @@ if (content.startsWith("!shopremove ")) {
         // ==========================
 
         if (content.startsWith("!bug ")) {
-            const args = content
-                .slice(5)
-                .trim()
-                .split(/\s+/);
-
-            return handleBug(message, args);
-        }
-
+           const args = content
+        .slice(5)
+        .trim()
+        .split(/\s+/);
+           return await handleBug(message, args);
+}
     } catch (error) {
         console.error(
             "❌ Erreur lors du traitement du message :",
@@ -242,4 +241,12 @@ process.on("uncaughtException", error => {
 // CONNEXION
 // =====================================================
 
-client.login(process.env.DISCORD_TOKEN);
+initializeDatabase()
+    .then(() => {
+        console.log("✅ Base de données initialisée");
+        return client.login(process.env.DISCORD_TOKEN);
+    })
+    .catch(error => {
+        console.error("❌ Impossible d'initialiser Turso :", error);
+        process.exit(1);
+    });

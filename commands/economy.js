@@ -33,7 +33,7 @@ async function handleMessageReward(message) {
     const userId = message.author.id;
     const guildId = message.guild.id;
 
-    const lastReward = getLastMessageReward(
+    const lastReward = await getLastMessageReward(
         userId,
         guildId
     );
@@ -42,12 +42,12 @@ async function handleMessageReward(message) {
 
     if (
         lastReward &&
-        now - lastReward.created_at < ECONOMY.MESSAGE_COOLDOWN
+        now - Number(lastReward.created_at) < ECONOMY.MESSAGE_COOLDOWN
     ) {
         return;
     }
 
-    const hourlyRewards = getRecentMessageRewards(
+    const hourlyRewards = await getRecentMessageRewards(
         userId,
         guildId,
         now - 60 * 60 * 1000
@@ -57,7 +57,7 @@ async function handleMessageReward(message) {
         return;
     }
 
-    const todayRewards = getTodayMessageRewards(
+    const todayRewards = await getTodayMessageRewards(
         userId,
         guildId,
         getStartOfDay()
@@ -67,7 +67,7 @@ async function handleMessageReward(message) {
         return;
     }
 
-    addBalance(
+    await addBalance(
         userId,
         guildId,
         ECONOMY.MESSAGE_REWARD,
@@ -76,10 +76,10 @@ async function handleMessageReward(message) {
     );
 }
 
-function handleBalance(message) {
+async function handleBalance(message) {
     if (!message.guild) return;
 
-    const balance = getBalance(
+    const balance = await getBalance(
         message.author.id,
         message.guild.id
     );
@@ -89,13 +89,13 @@ function handleBalance(message) {
     );
 }
 
-function handleDaily(message) {
+async function handleDaily(message) {
     if (!message.guild) return;
 
     const userId = message.author.id;
     const guildId = message.guild.id;
 
-    const user = getUser(
+    const user = await getUser(
         userId,
         guildId
     );
@@ -107,19 +107,21 @@ function handleDaily(message) {
 
     const todayTimestamp = today.getTime();
 
-    if (user.daily_claim_at >= todayTimestamp) {
+    if (Number(user.daily_claim_at) >= todayTimestamp) {
         return message.reply(
             "❌ Tu as déjà récupéré ton bonus quotidien aujourd'hui."
         );
     }
 
-    let streak = user.streak || 0;
+    let streak = Number(user.streak) || 0;
 
-    if (user.daily_claim_at > 0) {
+    if (Number(user.daily_claim_at) > 0) {
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
 
-        if (user.daily_claim_at === yesterday.getTime()) {
+        if (
+            Number(user.daily_claim_at) === yesterday.getTime()
+        ) {
             streak++;
         } else {
             streak = 0;
@@ -135,7 +137,7 @@ function handleDaily(message) {
         ECONOMY.DAILY_REWARD +
         streak * ECONOMY.DAILY_STREAK_BONUS;
 
-    addBalance(
+    await addBalance(
         userId,
         guildId,
         reward,
@@ -143,7 +145,7 @@ function handleDaily(message) {
         `Bonus quotidien, streak ${streak + 1}`
     );
 
-    updateDaily(
+    await updateDaily(
         userId,
         guildId,
         todayTimestamp,

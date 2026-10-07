@@ -6,30 +6,43 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
-const db = require("../database/database");
+const { db } = require("../database/database");
 const { addBalance } = require("../database/users");
 
 const BUG_REWARD = 10;
 
-function createBugReport(message, game, description) {
-    return db.prepare(`
-        INSERT INTO bug_reports (
-            user_id,
-            guild_id,
+// =====================================================
+// CRÉER UN RAPPORT DE BUG
+// =====================================================
+
+async function createBugReport(message, game, description) {
+    const result = await db.execute({
+        sql: `
+            INSERT INTO bug_reports (
+                user_id,
+                guild_id,
+                game,
+                description,
+                status,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, 'pending', ?)
+        `,
+        args: [
+            message.author.id,
+            message.guild.id,
             game,
             description,
-            status,
-            created_at
-        )
-        VALUES (?, ?, ?, ?, 'pending', ?)
-    `).run(
-        message.author.id,
-        message.guild.id,
-        game,
-        description,
-        Date.now()
-    ).lastInsertRowid;
+            Date.now()
+        ]
+    });
+
+    return Number(result.lastInsertRowid);
 }
+
+// =====================================================
+// !BUG
+// =====================================================
 
 async function handleBug(message, args) {
     if (!message.guild) return;
@@ -41,7 +54,6 @@ async function handleBug(message, args) {
     }
 
     const game = args.shift();
-
     const description = args.join(" ");
 
     if (description.length < 10) {
@@ -72,7 +84,7 @@ async function handleBug(message, args) {
         );
     }
 
-    const bugId = createBugReport(
+    const bugId = await createBugReport(
         message,
         game,
         description
@@ -130,6 +142,10 @@ async function handleBug(message, args) {
     );
 }
 
+// =====================================================
+// BOUTONS DE VALIDATION
+// =====================================================
+
 async function handleBugButton(interaction) {
     if (!interaction.isButton()) return;
 
@@ -158,11 +174,16 @@ async function handleBugButton(interaction) {
         });
     }
 
-    const bug = db.prepare(`
-        SELECT *
-        FROM bug_reports
-        WHERE id = ?
-    `).get(bugId);
+    const result = await db.execute({
+        sql: `
+            SELECT *
+            FROM bug_reports
+            WHERE id = ?
+        `,
+        args: [bugId]
+    });
+
+    const bug = result.rows[0];
 
     if (!bug) {
         return interaction.reply({
@@ -173,48 +194,101 @@ async function handleBugButton(interaction) {
 
     if (bug.status !== "pending") {
         return interaction.reply({
-            content: `❌ Ce bug a déjà été traité : **${bug.status}**.`,
+            content:
+                `❌ Ce bug a déjà été traité : **${bug.status}**.`,
             ephemeral: true
         });
     }
 
-   let status;
-let message;
-let reward = 0;
+    // =================================================
+    // EMPÊCHER L'AUTEUR DE VALIDER SON PROPRE BUG
+    // =================================================
 
-// L'auteur du bug ne peut pas le valider lui-même
-if (
-    action === "bug_validate" &&
-    interaction.user.id === bug.user_id
-) {
-    return interaction.reply({
-        content: "❌ Tu ne peux pas valider ton propre bug.",
-        ephemeral: true
+    if (
+        action === "bug_validate" &&
+        interaction.user.id === bug.user_id
+    ) {
+        return interaction.reply({
+            content:
+                "❌ Tu ne peux pas valider ton propre bug.",
+            ephemeral: true
+        });
+    }
+
+    let status;
+    let responseMessage;
+    let reward = 0;
+
+    if (action === "bug_validate") {
+        status = "validated";
+        reward = BUG_REWARD;
+
+        responseMessage =
+            `✅ Bug validé. <@${bug.user_id}> reçoit ` +
+            `**+${BUG_REWARD} pièces**.`;
+
+    } else if (action === "bug_reject") {
+        status = "rejected";
+
+        responseMessage =
+            "❌ Bug refusé.";
+
+    } else if (action === "bug_duplicate") {
+        status = "duplicate";
+
+        responseMessage =
+            "♻️ Bug marqué comme déjà signalé.";
+
+    } else {
+        return;
+    }
+
+    // =================================================
+    // METTRE À JOUR LE BUG
+    // =================================================
+
+    await db.execute({
+        sql: `
+            UPDATE bug_reports
+            SET status = ?,
+                validated_by = ?,
+                resolved_at = ?
+            WHERE id = ?
+              AND status = 'pending'
+        `,
+        args: [
+            status,
+            interaction.user.id,
+            Date.now(),
+            bugId
+        ]
     });
-}
 
-if (action === "bug_validate") {
-    status = "validated";
-    reward = BUG_REWARD;
-    message = `✅ Bug validé. <@${bug.user_id}> reçoit **+${BUG_REWARD} pièces**.`;
-} else if (action === "bug_reject") {
-    status = "rejected";
-    message = "❌ Bug refusé.";
-} else if (action === "bug_duplicate") {
-    status = "duplicate";
-    message = "♻️ Bug marqué comme déjà signalé.";
-} else {
-    return;
-}
+    // =================================================
+    // RÉCOMPENSE
+    // =================================================
 
+    if (reward > 0) {
+        await addBalance(
+            bug.user_id,
+            bug.guild_id,
+            reward,
+            "bug_reward",
+            `Bug #${bugId} validé`
+        );
+    }
 
-    transaction();
+    // =================================================
+    // METTRE À JOUR LE MESSAGE DISCORD
+    // =================================================
 
     const updatedEmbed = EmbedBuilder.from(
         interaction.message.embeds[0]
     )
         .setFooter({
-            text: `Traitement : ${status} | Par ${interaction.user.username}`
+            text:
+                `Traitement : ${status} | ` +
+                `Par ${interaction.user.username}`
         });
 
     await interaction.update({
@@ -223,7 +297,7 @@ if (action === "bug_validate") {
     });
 
     await interaction.followUp({
-        content: message,
+        content: responseMessage,
         ephemeral: false
     });
 }

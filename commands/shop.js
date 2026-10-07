@@ -3,10 +3,12 @@ const {
     PermissionsBitField
 } = require("discord.js");
 
-const db = require("../database/database");
+const { db } = require("../database/database");
+
 const {
     getBalance,
-    removeBalance
+    removeBalance,
+    addBalance
 } = require("../database/users");
 
 // =====================================================
@@ -16,15 +18,22 @@ const {
 async function handleShop(message) {
     if (!message.guild) return;
 
-    const items = db.prepare(`
-        SELECT *
-        FROM shop_items
-        WHERE guild_id = ?
-        ORDER BY id ASC
-    `).all(message.guild.id);
+    const result = await db.execute({
+        sql: `
+            SELECT *
+            FROM shop_items
+            WHERE guild_id = ?
+            ORDER BY id ASC
+        `,
+        args: [message.guild.id]
+    });
+
+    const items = result.rows;
 
     if (items.length === 0) {
-        return message.reply("🛒 La boutique est actuellement vide.");
+        return message.reply(
+            "🛒 La boutique est actuellement vide."
+        );
     }
 
     const embed = new EmbedBuilder()
@@ -60,15 +69,20 @@ async function handleBuy(message, args) {
         );
     }
 
-    const item = db.prepare(`
-        SELECT *
-        FROM shop_items
-        WHERE id = ?
-          AND guild_id = ?
-    `).get(
-        itemId,
-        message.guild.id
-    );
+    const result = await db.execute({
+        sql: `
+            SELECT *
+            FROM shop_items
+            WHERE id = ?
+              AND guild_id = ?
+        `,
+        args: [
+            itemId,
+            message.guild.id
+        ]
+    });
+
+    const item = result.rows[0];
 
     if (!item) {
         return message.reply(
@@ -92,12 +106,12 @@ async function handleBuy(message, args) {
         );
     }
 
-    const balance = getBalance(
+    const balance = await getBalance(
         message.author.id,
         message.guild.id
     );
 
-    if (balance < item.price) {
+    if (balance < Number(item.price)) {
         return message.reply(
             `❌ Tu n'as pas assez de pièces.\n` +
             `💰 Prix : **${item.price}**\n` +
@@ -105,10 +119,10 @@ async function handleBuy(message, args) {
         );
     }
 
-    const removed = removeBalance(
+    const removed = await removeBalance(
         message.author.id,
         message.guild.id,
-        item.price,
+        Number(item.price),
         "shop_purchase",
         `Achat : ${item.name}`
     );
@@ -122,26 +136,29 @@ async function handleBuy(message, args) {
     try {
         await message.member.roles.add(role);
 
-        const newBalance = getBalance(
+        await db.execute({
+            sql: `
+                INSERT INTO purchases (
+                    user_id,
+                    guild_id,
+                    item_id,
+                    price,
+                    created_at
+                )
+                VALUES (?, ?, ?, ?, ?)
+            `,
+            args: [
+                message.author.id,
+                message.guild.id,
+                Number(item.id),
+                Number(item.price),
+                Date.now()
+            ]
+        });
+
+        const newBalance = await getBalance(
             message.author.id,
             message.guild.id
-        );
-
-        db.prepare(`
-            INSERT INTO purchases (
-                user_id,
-                guild_id,
-                item_id,
-                price,
-                created_at
-            )
-            VALUES (?, ?, ?, ?, ?)
-        `).run(
-            message.author.id,
-            message.guild.id,
-            item.id,
-            item.price,
-            Date.now()
         );
 
         return message.reply(
@@ -152,10 +169,23 @@ async function handleBuy(message, args) {
         );
 
     } catch (error) {
-        console.error("Erreur attribution rôle :", error);
+        console.error(
+            "Erreur attribution rôle :",
+            error
+        );
+
+        // Remboursement automatique
+        await addBalance(
+            message.author.id,
+            message.guild.id,
+            Number(item.price),
+            "shop_refund",
+            `Remboursement : ${item.name}`
+        );
 
         return message.reply(
-            "❌ Le rôle n'a pas pu être attribué. Les pièces n'ont pas été remboursées automatiquement."
+            "❌ Le rôle n'a pas pu être attribué.\n" +
+            `💰 **${item.price} pièces** ont été remboursées.`
         );
     }
 }
@@ -201,22 +231,25 @@ async function handleShopAdd(message, args) {
         );
     }
 
-    db.prepare(`
-        INSERT INTO shop_items (
-            guild_id,
-            role_id,
+    await db.execute({
+        sql: `
+            INSERT INTO shop_items (
+                guild_id,
+                role_id,
+                name,
+                price,
+                created_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `,
+        args: [
+            message.guild.id,
+            role.id,
             name,
             price,
-            created_at
-        )
-        VALUES (?, ?, ?, ?, ?)
-    `).run(
-        message.guild.id,
-        role.id,
-        name,
-        price,
-        Date.now()
-    );
+            Date.now()
+        ]
+    });
 
     return message.reply(
         `✅ Article ajouté à la boutique : **${name}** pour **${price} pièces**.`
@@ -246,16 +279,19 @@ async function handleShopRemove(message, args) {
         );
     }
 
-    const result = db.prepare(`
-        DELETE FROM shop_items
-        WHERE id = ?
-          AND guild_id = ?
-    `).run(
-        itemId,
-        message.guild.id
-    );
+    const result = await db.execute({
+        sql: `
+            DELETE FROM shop_items
+            WHERE id = ?
+              AND guild_id = ?
+        `,
+        args: [
+            itemId,
+            message.guild.id
+        ]
+    });
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
         return message.reply(
             "❌ Article introuvable."
         );

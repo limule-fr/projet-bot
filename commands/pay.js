@@ -30,9 +30,7 @@ async function handlePay(message, args) {
         );
     }
 
-    const amount = Number(
-        args[1]
-    );
+    const amount = Number(args[1]);
 
     if (!Number.isInteger(amount) || amount <= 0) {
         return message.reply(
@@ -44,7 +42,8 @@ async function handlePay(message, args) {
     const senderId = message.author.id;
     const receiverId = target.id;
 
-    const senderBalance = getBalance(
+    // Récupération du solde
+    const senderBalance = await getBalance(
         senderId,
         guildId
     );
@@ -58,7 +57,7 @@ async function handlePay(message, args) {
     }
 
     // Retrait chez l'expéditeur
-    const removed = removeBalance(
+    const removed = await removeBalance(
         senderId,
         guildId,
         amount,
@@ -73,7 +72,7 @@ async function handlePay(message, args) {
     }
 
     // Ajout chez le destinataire
-    addBalance(
+    await addBalance(
         receiverId,
         guildId,
         amount,
@@ -81,7 +80,8 @@ async function handlePay(message, args) {
         `Transfert de ${senderId}`
     );
 
-    const newBalance = getBalance(
+    // Nouveau solde
+    const newBalance = await getBalance(
         senderId,
         guildId
     );
